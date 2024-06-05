@@ -13,7 +13,7 @@ WHERE country.continent = 'Europe';
 
 select name from country where city >10 and total_city_population >50000000;
 
-select country.name from country join city on country.code = city.country_code
+select country.name from country inner join city on country.code = city.country_code
 group by country.name
 having count(city.id) > 10 and sum(city.population) > 50000000;
 desc country;
@@ -22,7 +22,7 @@ desc city;
 
 SELECT country.name
 FROM country
-JOIN city ON country.code = city.country_code
+INNER JOIN city ON country.code = city.country_code
 GROUP BY country.name
 HAVING COUNT(city.id) > 10 AND SUM (city.population) > 50000000;
 
@@ -30,7 +30,7 @@ desc country;
 
 select country.name
 from country
-join city on country.code = city.countryCode
+inner join city on country.code = city.countryCode
 group by country.name
 having count(city.id) > 10 and sum(city.population) > 50000000;
 
@@ -44,7 +44,7 @@ join country on city.CountryCode = country.Code
 where country.name in (
     select country.name 
     from country 
-    join city on country.Code = city.CountryCode 
+    inner join city on country.Code = city.CountryCode 
     group by country.Name 
     having count(city.ID) > 10 and sum(city.Population) > 50000000
 ) and city.Population > 5000000;
@@ -52,7 +52,7 @@ where country.name in (
 
 select country.Continent, country.Name, city.Name as Capital
 from country 
-join city on country.Capital = city.ID 
+inner join city on country.Capital = city.ID 
 where (country.Population / country.SurfaceArea) > 1000;
 
 select Continent, Name, SurfaceArea 
