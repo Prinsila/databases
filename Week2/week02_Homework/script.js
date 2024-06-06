@@ -1,12 +1,10 @@
 const mysql = require('mysql2/promise');
 const readline = require('readline');
 
-
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
 });
-
 
 const dbConfig = {
     host: 'localhost',
@@ -15,14 +13,11 @@ const dbConfig = {
     database: 'new_world'
 };
 
-
 const getUserInput = (query) => {
     return new Promise((resolve) => rl.question(query, resolve));
 };
 
-
 const closeInterface = () => rl.close();
-
 
 const main = async () => {
     const connection = await mysql.createConnection(dbConfig);
@@ -30,58 +25,52 @@ const main = async () => {
     try {
         // Query 1:
         const countryX = await getUserInput('Enter the name of the countryCode to find its capital: ');
-        const [capitalResult] = await connection.execute(
-            'SELECT capital FROM countryCode WHERE name = ?',
-            [countryX]
+        const [capitalStmt] = await connection.prepare(
+            'SELECT capital FROM countryCode WHERE name = ?'
         );
+        const [capitalResult] = await capitalStmt.execute([countryX]);
+        await capitalStmt.deallocate();
         console.log('Capital:', capitalResult.length > 0 ? capitalResult[0].capital : 'Not found');
 
         // Query 2: 
         const regionY = await getUserInput('Enter the name of the region to list its languages: ');
-        const [languagesResult] = await connection.execute(
-            'SELECT DISTINCT cl.language FROM country_languages cl INNER JOIN countries c ON cl.country_code = c.code WHERE c.region = ?',
-            [regionY]
+        const [languagesStmt] = await connection.prepare(
+            'SELECT DISTINCT cl.language FROM country_languages cl INNER JOIN countries c ON cl.country_code = c.code WHERE c.region = ?'
         );
+        const [languagesResult] = await languagesStmt.execute([regionY]);
+        await languagesStmt.deallocate();
         console.log('Languages spoken in the region:', languagesResult.map(row => row.language).join(', '));
 
         // Query 3: 
         const languageZ = await getUserInput('Enter the language to find the number of cities it is spoken in: ');
-        const [citiesResult] = await connection.execute(
+        const [citiesStmt] = await connection.prepare(
             `SELECT COUNT(DISTINCT city) AS city_count
              FROM city_languages
-             WHERE language = ?`,
-            [languageZ]
+             WHERE language = ?`
         );
+        const [citiesResult] = await citiesStmt.execute([languageZ]);
+        await citiesStmt.deallocate();
         console.log('Number of cities where the language is spoken:', citiesResult[0].city_count);
 
         // Query 4: 
         const countryForComparison = await getUserInput('Enter the name of the country for comparison: ');
 
-        
-        const [countryInfo] = await connection.execute(
-            'SELECT official_language, continent FROM countries WHERE name = ?',
-            [countryForComparison]
+        const [comparisonStmt] = await connection.prepare(
+            `SELECT name
+             FROM countries
+             WHERE official_language = (SELECT official_language FROM countries WHERE name = ?)
+             AND continent = (SELECT continent FROM countries WHERE name = ?)
+             AND name != ?`
         );
+        const [sameLanguageAndContinentCountries] = await comparisonStmt.execute([countryForComparison, countryForComparison, countryForComparison]);
+        await comparisonStmt.deallocate();
 
-        if (countryInfo.length > 0) {
-            const officialLanguage = countryInfo[0].official_language;
-            const continent = countryInfo[0].continent;
-
-            const [sameLanguageAndContinentCountries] = await connection.execute(
-                `SELECT name
-                 FROM countries
-                 WHERE official_language = ? AND continent = ? AND name != ?`,
-                [officialLanguage, continent, countryForComparison]
-            );
-
-            if (sameLanguageAndContinentCountries.length > 0) {
-                console.log('Countries with the same official language and on the same continent:', sameLanguageAndContinentCountries.map(row => row.name).join(', '));
-            } else {
-                console.log('FALSE');
-            }
+        if (sameLanguageAndContinentCountries.length > 0) {
+            console.log('Countries with the same official language and on the same continent:', sameLanguageAndContinentCountries.map(row => row.name).join(', '));
         } else {
-            console.log('Country not found in the database.');
+            console.log('FALSE');
         }
+
     } catch (error) {
         console.error('Error executing queries:', error);
     } finally {
@@ -89,6 +78,5 @@ const main = async () => {
         closeInterface();
     }
 };
-
 
 main();
